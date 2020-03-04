@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Seismic Map of Yellowstone National Park</title>
+  <link rel="stylesheet" href="https://js.arcgis.com/4.13/esri/css/main.css">
+  <link rel="stylesheet" href="./style.css">
+  <script src="https://js.arcgis.com/4.13/"></script>
+  <script src="./main.js"></script>
+</head>
+
+<script>
+require(
+  [
+"esri/Map",
+"esri/layers/GeoJSONLayer",
+"esri/views/SceneView",
+"esri/Basemap",
+"esri/layers/TileLayer",
+"esri/widgets/Legend",
+"esri/widgets/Expand",
+"esri/widgets/HistogramRangeSlider",
+"esri/renderers/smartMapping/statistics/histogram",
+"esri/core/promiseUtils"
+], 
+function(Map, GeoJSONLayer, SceneView, Basemap, TileLayer, Legend, Expand, HistogramRangeSlider, histogram, promiseUtils) {
+  var days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+  var months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  Date.prototype.getMonthName = function() {
+      return months[ this.getMonth() ];
+  };
+  Date.prototype.getDayName = function() {
+      return days[ this.getDay() ];
+  };
+
+
+
+/*****************************************
+ * Date Time
+ *****************************************/
+var now = new Date();
+var dd = String(now.getDate()).padStart(2, '0');
+var mm = String(now.getMonth() + 1).padStart(2, '0'); //January is 0!
+var yyyy = now.getFullYear();
+var day = now.getDayName();
+var month = now.getMonthName();
+var hour = now.getHours();
+var min = now.getMinutes();
+var sec = now.getSeconds();
+var maxtime = now.getTime();
+const thirty = 2592000000
+var mintime = maxtime - thirty;
+  var fdate = day + " " + month + " " + dd + " " + yyyy + " "+ "12" + ":" + min + " " + sec + " GMT-0700 (Mountain Standard Time)";
+
+
+/*****************************************
+ * Define map and view
+ *****************************************/
+
+const map = new Map({basemap: "oceans"});
+
+const view = new SceneView({
+  container: "viewDiv",
+  camera: {
+    position: [-110, 44.5, 400000],
+    heading: 0,
+    tilt: 0
+  },
+  qualityProfile: "high",
+  map: map,
+  alphaCompositingEnabled: true,
+  environment: {
+    background: {
+      type: "color",
+      color: [0, 0, 0, 0]
+    },
+    lighting: {
+      date: fdate,
+    },
+    starsEnabled: true,
+    atmosphereEnabled: true
+  },
+  highlightOptions: {
+    fillOpacity: 0,
+    color: "#ffffff"
+  },
+  constraints: {
+    altitude: {
+      min: 4000
+    }
+  }
+});
+
+
+/*****************************************
+ * Create GeoJSONLayer
+ * from the USGS earthquake feed
+ *****************************************/
+
+const url = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.geojson";
+
+const earthquakesLayer = new GeoJSONLayer({
+  url: url,
+  copyright: "USGS Earthquakes",
+  screenSizePerspectiveEnabled: false,
+  title: "Earthquakes in the last 30 days",
+  popupTemplate: {
+    title: "Earthquake Info",
+    content: "Magnitude <b>{mag}</b> {type} hit <b>{place}</b> on <b>{time}</b>",
+    fieldInfos: [
+      {
+        fieldName: "time",
+        format: {
+          dateFormat: "short-date-short-time"
+        }
+      }
+    ]
+  }
+});
+
+map.add(earthquakesLayer);
+
+
+/*****************************************
+ * Create YNP layer
+ *****************************************/
+
+var parkRenderer = {
+  type: "simple",
+  symbol:{
+    type: "simple-fill", 
+    color: [0, 0, 0, 0],
+    outline: { 
+      width: 3,
+      color: "orange"
+    }
+  }
+}
+
+const npsboundaryurl = "https://opendata.arcgis.com/datasets/5f83e5be40a443478e5f966b5536050d_0.geojson?where=UPPER(UNIT_CODE)%20like%20%27%25YELL%25%27&outFields=*&outSR=4326&f=json";
+const yellLayer = new GeoJSONLayer ({
+  url: npsboundaryurl,
+  screenSizePerspectiveEnabled: false,
+  title: "Yellowstone Boundary",
+  renderer: parkRenderer,
+});
+map.add(yellLayer);
+
+
+
+
+// the number of earthquakes in each class is displayed in the legend
+
+const statDefinitions = [
+{
+  onStatisticField:
+    "CASE WHEN mag < 1.0 THEN 1 ELSE 0 END",
+  outStatisticFieldName: "m1",
+  statisticType: "sum"
+},
+{
+  onStatisticField:
+    "CASE WHEN mag < 2.0 AND mag >= 1.0 THEN 1 ELSE 0 END",
+  outStatisticFieldName: "m12",
+  statisticType: "sum"
+},
+{
+  onStatisticField:
+    "CASE WHEN mag < 3.0 AND mag >= 2.0 THEN 1 ELSE 0 END",
+  outStatisticFieldName: "m23",
+  statisticType: "sum"
+},
+{
+  onStatisticField:
+    "CASE WHEN mag < 4.0 AND mag >= 3.0 THEN 1 ELSE 0 END",
+  outStatisticFieldName: "m34",
+  statisticType: "sum"
+},
+{
+  onStatisticField:
+    "CASE WHEN mag < 5.0 AND mag >= 4.0 THEN 1 ELSE 0 END",
+  outStatisticFieldName: "m45",
+  statisticType: "sum"
+},
+{
+  onStatisticField:
+    "CASE WHEN mag < 7.0 AND mag >= 5.0 THEN 1 ELSE 0 END",
+  outStatisticFieldName: "medium",
+  statisticType: "sum"
+}, {
+  onStatisticField:
+    "CASE WHEN mag >= 7.0 THEN 1 ELSE 0 END",
+  outStatisticFieldName: "major",
+  statisticType: "sum"
+}, {
+  onStatisticField: "mag",
+  outStatisticFieldName: "total",
+  statisticType: "count"
+}];
+
+// the symbol for each earthquake class is composed of multiple symbol layers
+
+var secondSymbolLayer = {
+  type: "icon",
+  resource: { primitive: "circle"},
+  outline: {color: [255, 255, 255, 1], size: 1},
+  size: 16
+};
+
+var thirdSymbolLayer = {
+  type: "icon",
+  resource: { primitive: "circle"},
+  //material: { color: [245, 116, 73, 0] },
+  //outline: {color: [255, 255, 255, 0.9], size: 1},
+  size: 20
+};
+
+  var m01Layer = {
+  type: "icon",
+  resource: { primitive: "circle"},
+  material: { color: [245, 116, 73, 0.9] },
+  size: 2
+};
+  var m12Layer = {
+  type: "icon",
+  resource: { primitive: "circle"},
+  material: { color: [245, 116, 73, 0.9] },
+  size: 4
+};
+  var m23Layer = {
+  type: "icon",
+  resource: { primitive: "circle"},
+  material: { color: [245, 116, 73, 0.9] },
+  size: 6
+};
+  var m34Layer = {
+  type: "icon",
+  resource: { primitive: "circle"},
+  material: { color: [245, 116, 73, 0.9] },
+  size: 8
+};
+  var m45Layer = {
+  type: "icon",
+  resource: { primitive: "circle"},
+  material: { color: [245, 116, 73, 0.9] },
+  outline: {color: [255, 255, 255, 0.9], size: 1},
+  size: 12
+};
+
+
+earthquakesLayer.queryFeatures({geometry: view.extent, returnGeometry: true, where: "1=1", outStatistics: statDefinitions})
+  .then(function(result){
+    statResults = result.features[0].attributes;
+    var renderer = {
+      type: "class-breaks",
+      field: "mag",
+      legendOptions: {
+        title: "Legend"
+      },
+      visualVariables: 
+      [{type: "color", field: "time", stops: [{value: mintime,color: "blue", label: "30 Days",}, {value: maxtime, color: "red", label: "Present",}]}
+      ],
+      classBreakInfos: [
+      {
+        minValue: -2,
+        maxValue: 1,
+        symbol: {
+          type: "point-3d",
+          symbolLayers: [m01Layer]
+        },
+        label: annotate(statResults.m1) + " magnitude less than 1."
+      },
+      {
+        minValue: 1,
+        maxValue: 2,
+        symbol: {
+          type: "point-3d",
+          symbolLayers: [m12Layer]
+        },
+        label: annotate(statResults.m12) + " magnitude 1-2."
+      },
+       {
+        minValue: 2,
+        maxValue: 3,
+        symbol: {
+          type: "point-3d",
+          symbolLayers: [m23Layer]
+        },
+        label: annotate(statResults.m23) + " magnitude 2-3."
+      },
+       {
+        minValue: 3,
+        maxValue: 4,
+        symbol: {
+          type: "point-3d",
+          symbolLayers: [m34Layer]
+        },
+        label: annotate(statResults.m34) + " magnitude 3-4."
+      },
+       {
+        minValue: 4,
+        maxValue: 5,
+        symbol: {
+          type: "point-3d",
+          symbolLayers: [m45Layer]
+        },
+        label: annotate(statResults.m45) + " magnitude 4-5."
+      },
+        {
+        minValue: 5,
+        maxValue: 7,
+        symbol: {
+          type: "point-3d",
+          symbolLayers: [m45Layer, secondSymbolLayer, m45Layer]
+        },
+        label: annotate(statResults.medium) + " between 5 and 7. They can damage buildings and other structures in populated areas."
+      },
+        {
+        minValue: 7,
+        maxValue: 10,
+        symbol: {
+          type: "point-3d",
+          symbolLayers: [m45Layer, secondSymbolLayer, thirdSymbolLayer, secondSymbolLayer, m45Layer]
+        },
+        label: annotate(statResults.major) + " larger than 7. These earthquakes are likely to cause damage even to earthquake resistant structures."
+      }]
+    }
+    earthquakesLayer.renderer = renderer;
+  });
+
+
+  function annotate(no) {
+    if (no && no !== 0) {
+      if (no === 1) {
+        return "1 earthquake";
+      }
+      return no.toString() + " earthquakes";
+    }
+    return "No earthquakes";
+  }
+
+/*****************************************
+ * Create a histogram with a range slider
+ * to filter earthquakes based on magnitude
+ *****************************************/
+
+view.whenLayerView(earthquakesLayer).then(function(lyrView) {
+  const min = -2;
+  const max = 10;
+  histogram({
+    layer: earthquakesLayer,
+    field: "mag",
+    numBins: 30,
+    minValue: min,
+    maxValue: max
+  }).then(function(histogramResponse) {
+    const slider = new HistogramRangeSlider({
+      bins: histogramResponse.bins,
+      min: min,
+      max: max,
+      values: [min, max],
+      includedBarColor: [117, 19, 71],
+      excludedBarColor: [200, 200, 200],
+      rangeType: "between",
+      container: document.getElementById("histogram")
+    });
+
+    slider.on(["thumb-change", "thumb-drag", "segment-drag"], function() {
+      filterByHistogramRange().catch(function(error) {
+        if (error.name !== "AbortError") {
+          console.error(error);
+        }
+      });
+    });
+
+    const filterByHistogramRange = promiseUtils.debounce(function() {
+      const filterClause = slider.generateWhereClause("mag");
+      lyrView.filter = {
+        where: filterClause
+      };
+      return updateHistogramCount(filterClause, slider.values);
+    });
+
+    updateHistogramCount("1=1", [min, max]);
+  })
+  .catch(console.error);
+});
+
+function updateHistogramCount(clause, values) {
+  const query = earthquakesLayer.createQuery();
+  query.where = clause;
+  query.outStatistics = statDefinitions;
+  return earthquakesLayer.queryFeatures(query)
+    .then(function(result){
+      document.getElementById("histCount").innerHTML = annotate(result.features[0].attributes.total) + " with magnitude between " + transform(values[0]) + " and " + transform(values[1]);
+    });
+}
+
+function transform(number) {
+  return (Math.round(number * 100)/100).toString();
+}
+
+/*****************************************
+ * Add side panel with legend and histogram
+ * to the view
+ *****************************************/
+
+const sidePanelInfo = document.getElementById("sidePanelInfo");
+view.ui.add(sidePanelInfo, "bottom-left");
+
+const legend = new Expand ({
+  content: new Legend({
+    view: view,
+    style: "classic",
+    layerInfos: [{
+      layer: earthquakesLayer
+    }]
+  }),
+  view: view,
+  expanded: true
+});
+view.ui.add(legend, "bottom-right");
+});
+</script>
+
+<style>
+html,
+body,
+#viewDiv {
+  padding: 0;
+  margin: 0;
+  height: 100%;
+  width: 100%;
+  background-color: aliceblue;
+}
+#viewDiv canvas {
+  filter: drop-shadow(16px 16px 10px rgba(0, 0, 0, 0.5));
+}
+
+.esri-legend__layer-caption {
+display:none;
+}
+
+#histogram,
+.esri-legend,
+.esri-histogram-range-slider .esri-histogram,
+.esri-histogram__content {
+  background-color: transparent;
+}
+
+#sidePanelInfo {
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: none;
+  box-sizing: border-box;
+}
+
+#histContainer {
+  padding: 0 2em;
+  color: #323232;
+  font-size: 14px;
+  font-family: "Avenir Next W00", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  line-height: 1.3em;
+  max-width: 240px;
+}
+
+.esri-histogram-range-slider__range-type--between .esri-slider__segment-1 {
+  background-color: #751347;
+}
+.esri-slider__thumb,
+.esri-slider__anchor--moving:focus .esri-slider__thumb {
+  border: 2px solid #751347;
+}
+
+.title,
+.description {
+  padding-bottom: 1em;
+}
+
+.description {
+  padding-top: 1.5em;
+  font-size: 12px;
+}
+</style>
+
+<body>
+  <div id="viewDiv">
+    <div id ="sidePanelInfo">
+      <div id="legend"></div>
+      <div id="histContainer">
+        <div class="title">Magnitude histogram</div>
+        <div id="histogram"></div>
+        <div class="description" id="histCount"></div>
+      </div>
+    </div>
+  </div>
+
+</body>
+
+</html>
