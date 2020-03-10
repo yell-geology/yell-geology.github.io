@@ -215,7 +215,7 @@ var thirdSymbolLayer = {
   type: "icon",
   resource: { primitive: "circle"},
   //material: { color: [245, 116, 73, 0] },
-  //outline: {color: [255, 255, 255, 0.9], size: 1},
+  outline: {color: [255, 255, 255, 0.9], size: 1},
   size: 20
 };
 
@@ -320,7 +320,7 @@ earthquakesLayer.queryFeatures({geometry: view.extent, returnGeometry: true, whe
         label: annotate(statResults.medium) + " between 5 and 7. They can damage buildings and other structures in populated areas."
       },
         {
-        minValue: 7,
+        minValue: 6.99,
         maxValue: 10,
         symbol: {
           type: "point-3d",
