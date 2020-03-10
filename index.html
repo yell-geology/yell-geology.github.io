@@ -207,7 +207,7 @@ const statDefinitions = [
 var secondSymbolLayer = {
   type: "icon",
   resource: { primitive: "circle"},
-  outline: {color: [255, 255, 255, 1], size: 1},
+  outline: {color: [255, 255, 255, 0.9], size: 1},
   size: 16
 };
 
@@ -276,7 +276,7 @@ earthquakesLayer.queryFeatures({geometry: view.extent, returnGeometry: true, whe
       },
       {
         minValue: 1,
-        maxValue: 2,
+        maxValue: 1.99,
         symbol: {
           type: "point-3d",
           symbolLayers: [m12Layer]
@@ -284,8 +284,8 @@ earthquakesLayer.queryFeatures({geometry: view.extent, returnGeometry: true, whe
         label: annotate(statResults.m12) + " magnitude 1-2."
       },
        {
-        minValue: 2,
-        maxValue: 3,
+        minValue: 1.99,
+        maxValue: 2.99,
         symbol: {
           type: "point-3d",
           symbolLayers: [m23Layer]
@@ -293,8 +293,8 @@ earthquakesLayer.queryFeatures({geometry: view.extent, returnGeometry: true, whe
         label: annotate(statResults.m23) + " magnitude 2-3."
       },
        {
-        minValue: 3,
-        maxValue: 4,
+        minValue: 2.99,
+        maxValue: 3.99,
         symbol: {
           type: "point-3d",
           symbolLayers: [m34Layer]
@@ -302,8 +302,8 @@ earthquakesLayer.queryFeatures({geometry: view.extent, returnGeometry: true, whe
         label: annotate(statResults.m34) + " magnitude 3-4."
       },
        {
-        minValue: 4,
-        maxValue: 5,
+        minValue: 3.99,
+        maxValue: 4.99,
         symbol: {
           type: "point-3d",
           symbolLayers: [m45Layer]
@@ -311,7 +311,7 @@ earthquakesLayer.queryFeatures({geometry: view.extent, returnGeometry: true, whe
         label: annotate(statResults.m45) + " magnitude 4-5."
       },
         {
-        minValue: 5,
+        minValue: 4.99,
         maxValue: 6.99,
         symbol: {
           type: "point-3d",
